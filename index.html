@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .quiz-card { background: white; padding: 30px; border-radius: 15px; max-width: 600px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        /* Timer & Progress */
+        #timer { font-size: 22px; font-weight: bold; color: #d35400; text-align: center; border: 3px solid #d35400; width: 55px; height: 55px; line-height: 55px; border-radius: 50%; margin: 0 auto 20px; }
+        
+        .q-text { font-size: 1.2rem; font-weight: bold; color: #2c3e50; margin-bottom: 20px; line-height: 1.5; }
+        .opt-btn { display: block; width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #ecf0f1; border-radius: 8px; cursor: pointer; text-align: left; background: #fff; font-size: 1rem; transition: 0.3s; }
+        .opt-btn:hover { background: #e8f0fe; border-color: #3498db; }
+
+        /* POP-UP (Modal) Styling */
+        #popup-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); z-index: 999; justify-content: center; align-items: center; }
+        .popup-box { background: white; width: 90%; max-width: 550px; max-height: 85vh; border-radius: 15px; padding: 25px; overflow-y: auto; position: relative; animation: slideDown 0.4s ease; }
+        
+        @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .result-header { text-align: center; background: #2c3e50; color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .review-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .desc-box { background: #fff9db; padding: 10px; border-radius: 5px; margin-top: 8px; font-size: 0.9rem; color: #665c00; border-left: 4px solid #f1c40f; }
+        
+        .correct { color: #27ae60; font-weight: bold; }
+        .wrong { color: #e74c3c; font-weight: bold; text-decoration: line-through; }
+        .btn-reset { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1rem; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="quiz-card">
+    <div id="login-sec" style="text-align: center;">
+        <h2 style="color: #2c3e50;">Rajasthan Geography Exam</h2>
+        <input type="text" id="stuName" placeholder="Enter Your Name" style="width:90%; padding:12px; margin-bottom:20px; border-radius:5px; border:1px solid #ccc;">
+        <button onclick="start()" style="width:100%; padding:15px; background:#3498db; color:white; border:none; border-radius:8px; cursor:pointer;">Start Exam</button>
+    </div>
+
+    <div id="quiz-sec" style="display:none; text-align: center;">
+        <div id="timer">30</div>
+        <div id="q-box" class="q-text"></div>
+        <div id="opt-container"></div>
+    </div>
+</div>
+
+<div id="popup-overlay">
+    <div class="popup-box">
+        <div class="result-header">
+            <h2 id="pop-score">Score: 0/10</h2>
+            <p id="pop-name"></p>
+        </div>
+        <h3 style="color: #34495e;">Answer Key & Description:</h3>
+        <div id="review-list"></div>
+        <button class="btn-reset" onclick="location.reload()">Restart Quiz</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { q: "राजस्थान का सबसे बड़ा भौतिक विभाग कौन सा है?", a: ["अरावली", "पूर्वी मैदान", "उत्तर-पश्चिमी मरुस्थल", "हाड़ौती पठार"], c: 2, d: "उत्तर-पश्चिमी मरुस्थल राजस्थान के कुल क्षेत्रफल का लगभग 61.11% भाग कवर करता है।" },
+        { q: "कोपेन के अनुसार 'BWhw' जलवायु कहाँ पाई जाती है?", a: ["जैसलमेर-बीकानेर", "कोटा-बूंदी", "उदयपुर", "अलवर"], c: 0, d: "BWhw उष्ण शुष्क मरुस्थलीय जलवायु को दर्शाता है, जो जैसलमेर और बीकानेर के पश्चिमी भागों में है।" },
+        { q: "राजस्थान की सबसे ऊँची झील कौन सी है?", a: ["जयसमंद", "नक्की झील", "राजसमंद", "फतेहसागर"], c: 1, d: "माउंट आबू (सिरोही) में स्थित नक्की झील राजस्थान की सबसे ऊँची और एकमात्र जमने वाली झील है।" },
+        { q: "56 की पहाड़ियाँ राजस्थान के किस जिले में स्थित हैं?", a: ["बाँसवाड़ा", "बाड़मेर (बालोतरा)", "जालौर", "सिरोही"], c: 1, d: "56 की पहाड़ियाँ बालोतरा (पुराना बाड़मेर) में हैं, जबकि 56 का मैदान प्रतापगढ़-बाँसवाड़ा में है।" },
+        { q: "राजस्थान में सर्वाधिक सिंचाई किस साधन से होती है?", a: ["नहरें", "तालाब", "कुएं एवं ट्यूबवेल", "झरने"], c: 2, d: "राजस्थान में लगभग 66% से अधिक सिंचाई कुओं और ट्यूबवेल के माध्यम से की जाती है।" },
+        { q: "राष्ट्रीय ऊँट अनुसंधान केंद्र कहाँ स्थित है?", a: ["बीकानेर (जोहड़बीड़)", "जोधपुर", "जैसलमेर", "बाड़मेर"], c: 0, d: "यह बीकानेर के जोहड़बीड़ में स्थित है, जिसकी स्थापना 1984 में हुई थी।" },
+        { q: "राजस्थान का वह ज़िला जो अंतर्राज्यीय और अंतर्राष्ट्रीय दोनों सीमा बनाता है?", a: ["बीकानेर", "जैसलमेर", "गंगानगर", "हनुमानगढ़"], c: 2, d: "गंगानगर (पाकिस्तान + पंजाब) और बाड़मेर (पाकिस्तान + गुजरात) दोनों प्रकार की सीमाएं बनाते हैं।" },
+        { q: "गुरुशिखर को 'संतों का शिखर' किसने कहा?", a: ["जॉर्ज थॉमस", "कर्नल जेम्स टॉड", "मुहणोत नैणसी", "दशरथ शर्मा"], c: 1, d: "कर्नल टॉड ने इसकी ऊँचाई और शांत वातावरण को देखकर इसे संतों का शिखर कहा था।" },
+        { q: "राजस्थान में मरू महोत्सव कहाँ मनाया जाता है?", a: ["बीकानेर", "जोधपुर", "जैसलमेर", "बाड़मेर"], c: 2, d: "जैसलमेर में मरू महोत्सव और बीकानेर में ऊँट महोत्सव मनाया जाता है।" },
+        { q: "चम्बल नदी राजस्थान के किस जिले से प्रवेश करती है?", a: ["झालावाड़", "कोटा", "चित्तौड़गढ़ (चौरासीगढ़)", "धौलपुर"], c: 2, d: "चम्बल नदी चित्तौड़गढ़ के चौरासीगढ़ से राजस्थान में प्रवेश करती है।" }
+    ];
+
+    let current = 0, score = 0, timer, userAns = [];
+
+    function start() {
+        if(!document.getElementById('stuName').value) return alert("Please enter your name!");
+        document.getElementById('login-sec').style.display = 'none';
+        document.getElementById('quiz-sec').style.display = 'block';
+        loadQ();
+    }
+
+    function loadQ() {
+        if(current >= questions.length) return showPop();
+        let time = 30;
+        document.getElementById('timer').innerText = time;
+        document.getElementById('q-box').innerText = `${current+1}. ${questions[current].q}`;
+        let h = "";
+        questions[current].a.forEach((o, i) => {
+            h += `<button class="opt-btn" onclick="check(${i})">${o}</button>`;
+        });
+        document.getElementById('opt-container').innerHTML = h;
+
+        clearInterval(timer);
+        timer = setInterval(() => {
+            time--;
+            document.getElementById('timer').innerText = time;
+            if(time <= 0) check(-1);
+        }, 1000);
+    }
+
+    function check(idx) {
+        clearInterval(timer);
+        userAns.push(idx);
+        if(idx === questions[current].c) score++;
+        current++;
+        loadQ();
+    }
+
+    function showPop() {
+        document.getElementById('popup-overlay').style.display = 'flex';
+        document.getElementById('pop-name').innerText = "Candidate: " + document.getElementById('stuName').value;
+        document.getElementById('pop-score').innerText = `Score: ${score}/10`;
+        
+        let list = "";
+        questions.forEach((q, i) => {
+            let u = userAns[i];
+            list += `<div class="review-item">
+                <strong>Q${i+1}: ${q.q}</strong><br>
+                Your Ans: <span class="${u == q.c ? 'correct' : 'wrong'}">${u == -1 ? 'Time Out' : q.a[u]}</span><br>
+                Correct: <span class="correct">${q.a[q.c]}</span>
+                <div class="desc-box">💡 ${q.d}</div>
+            </div>`;
+        });
+        document.getElementById('review-list').innerHTML = list;
+    }
+</script>
+
+</body>
+</html>
